@@ -1,0 +1,21 @@
+# --- General ---
+.DS_Store
+.env
+*.log
+
+# --- Frontend (React/Vite) ---
+frontend/node_modules/
+frontend/dist/
+frontend/.local
+
+# --- Backend (Node.js) ---
+server/node_modules/
+server/.env
+server/serviceAccountkey.json
+# --- Python Agent (Harshitha) ---
+agent/__pycache__/
+agent/venv/
+agent/*.pyc
+
+# --- Global Node Modules (Just in case) ---
+node_modules/
