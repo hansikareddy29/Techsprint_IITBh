@@ -54,3 +54,33 @@ exports.getHistory = async (req, res) => {
     const history = snap.docs.map(doc => doc.data()).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
     res.json(history);
 };
+
+// --- ADD THIS TO THE BOTTOM OF logController.js ---
+
+// 4. Notification Token Registration
+exports.registerToken = async (req, res) => {
+    try {
+        const { deviceId, fcmToken } = req.body;
+        await db.collection('device_tokens').doc(deviceId).set({
+            fcmToken: fcmToken,
+            timestamp: new Date().toISOString()
+        });
+        res.json({ message: "Notification token registered!" });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// 5. Get List of Unique Devices
+exports.getDevices = async (req, res) => {
+    try {
+        const snapshot = await db.collection('battery_logs').get();
+        const deviceSet = new Set();
+        snapshot.forEach(doc => {
+            if(doc.data().deviceId) deviceSet.add(doc.data().deviceId);
+        });
+        res.json({ devices: Array.from(deviceSet) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
