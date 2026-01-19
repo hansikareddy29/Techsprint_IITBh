@@ -28,7 +28,7 @@ const App = () => {
   ]);
 
   const deviceId = "Harshitha_Mac_Station"; 
-  const SERVER_URL = "http://localhost:5001"; // Port matches Member 2's server
+  const SERVER_URL = "http://10.50.41.207:8080/"; // Port matches Member 2's server
 
   // 2. AXIOS CONNECTION: The bridge to Member 2 (Hansika)
   useEffect(() => {
