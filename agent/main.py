@@ -8,7 +8,7 @@ import os
 
 # --- CONFIGURATION ---
 # Once Member 2 deploys the backend, update this URL
-SERVER_URL = "http://localhost:5000/api/logs" 
+SERVER_URL = "http://10.50.41.207:8080/api/logs/save" 
 DEVICE_ID = f"{platform.node()}_agent"
 
 class VoltGuardAgent:
@@ -152,7 +152,7 @@ class VoltGuardAgent:
                     f.write(json.dumps(payload) + "\n")
 
             # Check every 10 seconds for testing (change to 1800 for final submission)
-            time.sleep(1800)
+            time.sleep(10)
 
 if __name__ == "__main__":
     agent = VoltGuardAgent()
