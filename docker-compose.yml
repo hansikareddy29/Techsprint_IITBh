@@ -1,0 +1,24 @@
+services:
+  # 1. THE BACKEND
+  server:
+    build: ./server
+    ports:
+      - "8080:8080"
+    # We removed volumes here to prevent the MODULE_NOT_FOUND error
+    restart: always
+
+  # 2. THE AGENT (The Python Collector)
+  agent:
+    build: ./agent
+    depends_on:
+      - server
+    # Running in host mode lets it see YOUR battery
+    network_mode: "host"
+
+  # 3. THE FRONTEND
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
