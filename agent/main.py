@@ -7,7 +7,7 @@ import requests
 
 # --- CONFIGURATION ---
 # Replace with Hansika's Cloud URL after deployment
-SERVER_URL = "http://10.50.3.159:8080/api/logs/save" 
+SERVER_URL = "http://localhost:8080/api/logs/save" 
 
 class VoltGuardAgent:
     def __init__(self):
@@ -44,7 +44,7 @@ class VoltGuardAgent:
         batt = psutil.sensors_battery()
         hw = self.get_hardware_data()
         return {
-            "device_id": self.device_name,
+            "deviceId": self.device_name,
             "os": self.os_type,
             "battery_percent": batt.percent if batt else 0,
             "is_charging": batt.power_plugged if batt else False,

@@ -56,14 +56,14 @@ python3 main.py
 
 2. Server (Member 2 - Hansika)
 cd server
-npm install
-# Add your GEMINI_API_KEY to .env and firebase-key.json to root
-node index.js
+docker build -t voltguard-backend .
+docker run -p 8080:8080 --env GEMINI_API_KEY=YOUR_ACTUAL_GEMINI_KEY voltguard-backend
 
 3. Frontend (Member 3 - Suneetha)
 cd frontend
-npm install
-npm run dev
+docker build -t voltguard-frontend .
+docker run -p 3000:5173 voltguard-frontend
+
 👥 The Team (BTech 3rd Year)
 
     Harshitha: OS Specialist & Data Architect (Member 1).
