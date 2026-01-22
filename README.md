@@ -48,6 +48,8 @@ The "Reason" Engine: Uses Gemini AI to provide human-readable explanations for b
 
 🏗️ Installation & Setup
 1. Agent (Member 1 - Harshitha)
+deactivate
+cd .\Techsprint_IITBh\
 cd agent
 python3 -m venv venv
 source venv/bin/activate
@@ -55,11 +57,20 @@ pip install -r requirements.txt
 python3 main.py
 
 2. Server (Member 2 - Hansika)
+deactivate
+cd .\Techsprint_IITBh\
 cd server
+docker stop $(docker ps -aq)  
 docker build -t voltguard-backend .
+docker run -p 8080:8080 --env GEMINI_API_KEY=AIzaSyCBabg-nEZIc1h6y-3QyN4kbyuoy0NcxxA voltguard-backend
 docker run -p 8080:8080 --env GEMINI_API_KEY=YOUR_ACTUAL_GEMINI_KEY voltguard-backend
 
+docker stop $(docker ps -aq)      
+docker run -p 8080:8080 --env GEMINI_API_KEY=AIzaSyD7yVxPIyRU9Too5pMJy-sbyTTvLvXGNPM voltguard-backend
+
 3. Frontend (Member 3 - Suneetha)
+deactivate
+cd .\Techsprint_IITBh\
 cd frontend
 docker build -t voltguard-frontend .
 docker run -p 3000:5173 voltguard-frontend
