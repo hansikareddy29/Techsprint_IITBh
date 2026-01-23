@@ -1,35 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Activity, Cpu, Battery, CheckCircle, AlertCircle, RefreshCw, Zap, ShieldCheck } from 'lucide-react';
+import { Activity, RefreshCw, Zap, ShieldCheck, CheckCircle, Smartphone } from 'lucide-react';
 
 const API_BASE = "http://localhost:8080/api";
 
 export default function App() {
-  const [deviceId, setDeviceId] = useState(localStorage.getItem('my_device_id') || "");
+  // Automatically retrieve the last used device from browser memory
+  const [deviceId, setDeviceId] = useState(localStorage.getItem('selected_device') || "");
   const [devices, setDevices] = useState([]);
   const [history, setHistory] = useState([]);
   const [stats, setStats] = useState({});
   const [aiReport, setAiReport] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // 1. Fetch available devices list once on load
+  // 1. Fetch all available devices
   useEffect(() => {
     axios.get(`${API_BASE}/logs/list-devices`)
       .then(res => {
-        const foundDevices = res.data.devices || [];
-        setDevices(foundDevices);
-        if (!deviceId && foundDevices.length > 0) {
-          setDeviceId(foundDevices[0]);
-          localStorage.setItem('my_device_id', foundDevices[0]);
+        const found = res.data.devices || [];
+        setDevices(found);
+        // If nothing is saved in memory, auto-pick the first one found
+        if (!deviceId && found.length > 0) {
+          handleDeviceChange(found[0]);
         }
       });
   }, []);
 
-  // 2. FETCH TELEMETRY (Hardware Stats) - Fast Polling
+  // 2. Fetch Stats and Chart data (Every 5 minutes)
   useEffect(() => {
     if (!deviceId) return;
-
     const fetchStats = async () => {
       try {
         const [hRes, sRes] = await Promise.all([
@@ -43,37 +43,25 @@ export default function App() {
     };
 
     fetchStats();
-    // Hardware data refreshes every 10 seconds (safe)
-    const statsInterval = setInterval(fetchStats, 3600000); 
-    
+    const statsInterval = setInterval(fetchStats, 300000); 
     return () => clearInterval(statsInterval);
   }, [deviceId]);
 
-  // 3. FETCH AI DIAGNOSIS - Separate and SLOW
+  // 3. Fetch AI Analysis
   useEffect(() => {
     if (!deviceId) return;
-
-    const fetchAI = () => {
-        setAiReport(null); // Clear old report to show loading
-        axios.get(`${API_BASE}/ai/diagnosis/${deviceId}`)
-          .then(res => setAiReport(res.data))
-          .catch((err) => {
-            console.error("AI Error:", err);
-            setAiReport({ summary: "AI limit reached or server error. Check backend logs." });
-          });
-    };
-
-    fetchAI();
-    // We do NOT set an interval for AI. 
-    // It only runs ONCE when deviceId changes.
+    setAiReport(null);
+    axios.get(`${API_BASE}/ai/diagnosis/${deviceId}`)
+      .then(res => setAiReport(res.data))
+      .catch(() => setAiReport({ summary: "AI currently busy." }));
   }, [deviceId]);
 
   const handleDeviceChange = (id) => {
     setDeviceId(id);
-    localStorage.setItem('my_device_id', id);
+    localStorage.setItem('selected_device', id); // Memory: Automatic detection for next time
   };
 
-  if (loading && !deviceId) return <div className="p-20 text-center"><RefreshCw className="animate-spin mx-auto"/> Loading VoltGuard...</div>;
+  if (!deviceId && devices.length === 0) return <div className="p-20 text-center">Waiting for Python Agent to send data...</div>;
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 font-sans">
@@ -87,7 +75,7 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-3 bg-slate-100 p-2 rounded-2xl">
-            <ShieldCheck size={18} className="text-indigo-500"/>
+            <Smartphone size={18} className="text-indigo-500"/>
             <select 
               value={deviceId} 
               onChange={(e) => handleDeviceChange(e.target.value)}
@@ -114,7 +102,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Chart and AI Section */}
+        {/* Charts and AI Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white p-6 rounded-[2rem] shadow-sm">
             <h3 className="font-bold mb-4 flex items-center gap-2"><Zap size={18} className="text-yellow-500"/> Performance Trend</h3>
@@ -131,42 +119,25 @@ export default function App() {
             </div>
           </div>
 
-          <div className="bg-indigo-600 text-white p-8 rounded-[2rem] shadow-xl relative">
-            <div className="flex justify-between items-start mb-4">
-              <h4 className="font-black text-2xl">AI Health: {aiReport?.overallScore || "--"}</h4>
-              <button 
-                onClick={() => window.location.reload()} 
-                className="bg-white/10 p-2 rounded-lg hover:bg-white/20 transition"
-                title="Refresh AI"
-              >
-                <RefreshCw size={16}/>
-              </button>
-            </div>
-            
+          <div className="bg-indigo-600 text-white p-8 rounded-[2rem] shadow-xl">
+            <h4 className="font-black text-2xl mb-4">AI Health: {aiReport?.overallScore || "--"}</h4>
             {aiReport ? (
-              <>
-                <p className="text-sm italic opacity-90 mb-6">"{aiReport.summary}"</p>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase opacity-60">High Drain Apps</p>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {aiReport.culprits?.map(c => <span key={c} className="bg-white/20 px-2 py-1 rounded-md text-xs">{c}</span>)}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase opacity-60">Action Plan</p>
-                    <ul className="text-xs space-y-2 mt-2">
-                      {aiReport.actionPlan?.map(s => <li key={s} className="flex gap-2"><CheckCircle size={12}/> {s}</li>)}
-                    </ul>
-                  </div>
+              <div className="space-y-4">
+                <p className="text-sm italic opacity-90">"{aiReport.summary}"</p>
+                <div>
+                  <p className="text-[10px] font-bold uppercase opacity-60">Action Plan</p>
+                  <ul className="text-xs space-y-2 mt-2">
+                    {aiReport.actionPlan?.map((s, index) => (
+                      <li key={index} className="flex gap-2">
+                        <CheckCircle size={12}/> 
+                        {/* Rendering Fix: Handles both objects and strings from AI */}
+                        {typeof s === 'object' ? (s.description || s.step || JSON.stringify(s)) : s}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-              </>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-48 opacity-50">
-                <RefreshCw className="animate-spin mb-2" size={32}/>
-                <p className="text-xs font-bold uppercase">Generating Report...</p>
               </div>
-            )}
+            ) : <RefreshCw className="animate-spin mx-auto mt-10" size={32}/>}
           </div>
         </div>
       </div>
