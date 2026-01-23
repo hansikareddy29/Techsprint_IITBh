@@ -61,18 +61,32 @@ require('dotenv').config();
 
 const logRoutes = require('./routes/logRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const analyst = require('./controllers/analystService'); // New
+const db = require('./config/firebase-config');
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Routes
 app.use('/api/logs', logRoutes);
 app.use('/api/ai', aiRoutes);
 
-app.get('/', (req, res) => res.send('VoltGuard AI Backend (Docker) is Online'));
+// --- BACKGROUND ANALYST TASK ---
+// This runs every 6 hours to update the "Memory" for all devices
+setInterval(async () => {
+    try {
+        console.log("🕒 Starting Global Background Analysis...");
+        const snapshot = await db.collection('battery_logs').get();
+        const deviceSet = new Set();
+        snapshot.forEach(doc => deviceSet.add(doc.data().deviceId));
+        
+        for (let id of deviceSet) {
+            await analyst.generateLongTermTrend(id);
+        }
+    } catch (e) { console.log("Background Task Error:", e.message); }
+}, 21600000); // 6 Hours
+// -------------------------------
 
-// 0.0.0.0 is required for Docker/Cloud deployment
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 VoltGuard Server running on port ${PORT}`);
