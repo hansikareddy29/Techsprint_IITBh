@@ -62,7 +62,7 @@ cd .\Techsprint_IITBh\
 cd server
 docker stop $(docker ps -aq)  
 docker build -t voltguard-backend .
-docker run -p 8080:8080 --env GEMINI_API_KEY=AIzaSyAC6-WSdQUaxQCywCBEaWdDkNMMdLV340k voltguard-backend
+docker run -p 8080:8080 --env GEMINI_API_KEY=you api key voltguard-backend
 
 3. Frontend (Member 3 - Suneetha)
 deactivate
