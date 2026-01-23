@@ -1,7 +1,6 @@
 const db = require('../config/firebase-config');
 const model = require('../config/gemini-config');
 
-// In-memory cache to save your API quota (15-minute window)
 const diagnosisCache = {}; 
 
 exports.getDiagnosis = async (req, res) => {
@@ -44,20 +43,23 @@ exports.getDiagnosis = async (req, res) => {
             3. Look for "top_apps" that are consuming the most resources.
             4. Provide a technical summary and a 3-step action plan.
 
+            FORMATTING RULES for Action Plan:
+            - "step": This must be a short, high-level header (e.g., "Limit Docker Memory").
+            - "description": This must be the detailed instruction (e.g., "Open Docker settings and reduce RAM to 4GB...").
+
             Return ONLY a valid JSON object. Do not include markdown or backticks.
             Structure:
             {
               "overallScore": (number between 0-100),
-              "summary": "A 2-sentence technical summary of the system state.",
+              "summary": "A concise overview of current health.",
               "culprits": ["App Name 1", "App Name 2"],
               "actionPlan": [
-                { "step": "Step 1 Title", "description": "Specific instruction for user" },
-                { "step": "Step 2 Title", "description": "Specific instruction for user" },
-                { "step": "Step 3 Title", "description": "Specific instruction for user" }
+                { "step": "SHORT HIGHLIGHT 1", "description": "DETAILED EXPLANATION 1" },
+                { "step": "SHORT HIGHLIGHT 2", "description": "DETAILED EXPLANATION 2" },
+                { "step": "SHORT HIGHLIGHT 3", "description": "DETAILED EXPLANATION 3" }
               ]
             }
         `;
-
         // 4. Generate AI Content
         const result = await model.generateContent(prompt);
         const response = await result.response;

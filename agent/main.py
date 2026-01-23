@@ -30,10 +30,29 @@ class VoltGuardAgent:
         return hw
 
     def get_real_apps(self):
-        # Ignore system processes to show only real apps
-        IGNORE_LIST = ['kernel_task', 'launchd', 'WindowServer', 'python', 'python3', 'System Idle Process', 'node', 'mds']
+        # 1. Exact system process names to ignore
+        IGNORE_EXACT = [
+            # macOS
+            'kernel_task', 'launchd', 'WindowServer', 'mds', 'mdworker', 'mds_stores', 
+            'opendirectoryd', 'powerd', 'configd', 'UserEventAgent', 'iconservicesagent', 
+            'cfprefsd', 'distnoted', 'locationd', 'sharingd', 'tccd', 'softwareupdated',
+            'trustd', 'accountsd', 'syspolicyd', 'nsurlsessiond', 'amfid', 'bird', 'cloudd',
+            # Windows
+            'System Idle Process', 'System', 'Registry', 'smss.exe', 'csrss.exe', 
+            'wininit.exe', 'services.exe', 'lsass.exe', 'svchost.exe', 'winlogon.exe', 
+            'dwm.exe', 'RuntimeBroker.exe', 'SearchIndexer.exe', 'TaskHost.exe', 
+            'WmiPrvSE.exe', 'ctfmon.exe', 'conhost.exe', 'dllhost.exe', 'sihost.exe',
+            'MpCmdRun.exe', 'MsMpEng.exe', 'SearchHost.exe', 'SearchIndexer.exe',
+            # Linux Kernel / System
+            'systemd', 'kthreadd', 'kworker', 'ksoftirqd', 'migration', 'rcu_sched', 
+            'kdevtmpfs', 'cpuhp', 'bash', 'sh', 'zsh', 'login',
+            # Universal Dev Tools
+            'python', 'python3', 'pythonw.exe', 'node', 'npm', 'pip'
+        ]
+
+        # 2. Substrings that identify background/internal components
+        IGNORE_KEYWORDS = ['helper', 'renderer', 'service', 'daemon', 'extension', 'com.apple', 'provider', 'broker']
         
-        # Measurement gap for accuracy
         for proc in psutil.process_iter(['cpu_percent']):
             try: proc.info['cpu_percent']
             except: pass
@@ -44,7 +63,16 @@ class VoltGuardAgent:
             try:
                 name = proc.info.get('name')
                 cpu = proc.info.get('cpu_percent')
-                if name and cpu is not None and cpu > 0.5 and name not in IGNORE_LIST:
+                
+                if name and cpu is not None and cpu > 0.5:
+                    name_lower = name.lower()
+                    
+                    if name in IGNORE_EXACT:
+                        continue
+                        
+                    if any(key in name_lower for key in IGNORE_KEYWORDS):
+                        continue
+                    
                     apps.append({"name": name, "cpu": cpu})
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass

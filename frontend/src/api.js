@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-// IMPORTANT: Replace with Hansika's IPv4 Address for the final demo
 const BASE_URL = "http://localhost:8080/api"; 
 
 export const api = {
