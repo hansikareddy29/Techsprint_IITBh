@@ -1,85 +1,99 @@
 const db = require('../config/firebase-config');
-const admin = require('firebase-admin');
 
 exports.saveLog = async (req, res) => {
     try {
-        const p = req.body; 
-        
-        // Mapping Python keys to our Database names
+        const p = req.body;
+        const cpu = Number(p.cpu_load) || 0;
+        const ram = Number(p.ram_usage) || 0;
+        const batt = Number(p.battery_percent) || 0;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+
+        let isAlert = false;
+        let alertReason = "";
+        if (cpu > 90) { isAlert = true; alertReason = "High CPU Stress"; }
+        else if (ram > 90) { isAlert = true; alertReason = "Extreme RAM Pressure"; }
+        else if (batt < 15 && !p.is_charging) { isAlert = true; alertReason = "Low Battery"; }
+
         const logEntry = {
-            deviceId: p.device_id,
-            os: p.os,
-            battery_level: p.battery_percent,
-            is_charging: p.is_charging,
-            cpu_load: p.cpu_load,
-            ram_usage: p.ram_usage,
+            deviceId: (p.deviceId || "Unknown").trim(),
+            os: p.os || "Unknown",
+            ipAddress: ip,
+            battery_level: batt,
+            is_charging: p.is_charging || false,
+            cpu_load: cpu,
+            ram_usage: ram,
             top_apps: p.top_apps || [],
-            timestamp: new Date().toISOString()
+            cycles: p.cycles || 0,
+            health: p.health || 100,
+            timestamp: new Date().toISOString(),
+            isAlert,
+            alertReason: alertReason || "System Healthy"
         };
 
-        // Automatic Alert Trigger
-        if (logEntry.cpu_load > 90) {
-            logEntry.isAlert = true;
-            logEntry.alertType = "High System Stress";
-        }
-
         await db.collection('battery_logs').add(logEntry);
-        res.status(201).json({ message: "Telemetry Saved", device: logEntry.deviceId });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+        res.status(201).json({ message: "Saved" });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
 exports.getStats = async (req, res) => {
     try {
-        const { deviceId } = req.params;
-        const snap = await db.collection('battery_logs').where('deviceId', '==', deviceId).get();
-        if (snap.empty) return res.status(404).json({ message: "No data" });
+        const deviceId = req.params.deviceId.trim();
+        const snapshot = await db.collection('battery_logs')
+            .where('deviceId', '==', deviceId)
+            .orderBy('timestamp', 'desc').get();
 
-        const logs = snap.docs.map(doc => doc.data());
-        let sumCpu = 0;
-        logs.forEach(l => sumCpu += l.cpu_load);
+        if (snapshot.empty) return res.status(404).json({ message: "No data" });
+
+        const logs = snapshot.docs.map(doc => doc.data());
+        const recentAlert = logs.find(l => l.isAlert === true);
 
         res.json({
-            avgCpu: (sumCpu / logs.length).toFixed(1),
-            lastBattery: logs[logs.length-1].battery_level,
-            totalLogs: logs.length
+            avgCpu: (logs.reduce((s, l) => s + l.cpu_load, 0) / logs.length).toFixed(1),
+            lastBattery: logs[0].battery_level,
+            batteryHealth: logs[0].health, // <--- ADDED THIS LINE
+            totalAlerts: logs.filter(l => l.isAlert).length,
+            latestAlertReason: recentAlert ? recentAlert.alertReason : "System Healthy"
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
 exports.getHistory = async (req, res) => {
-    const { deviceId } = req.params;
-    const snap = await db.collection('battery_logs').where('deviceId', '==', deviceId).get();
-    const history = snap.docs.map(doc => doc.data()).sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
-    res.json(history);
-};
-
-// --- ADD THIS TO THE BOTTOM OF logController.js ---
-
-// 4. Notification Token Registration
-exports.registerToken = async (req, res) => {
     try {
-        const { deviceId, fcmToken } = req.body;
-        await db.collection('device_tokens').doc(deviceId).set({
-            fcmToken: fcmToken,
-            timestamp: new Date().toISOString()
-        });
-        res.json({ message: "Notification token registered!" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+        const deviceId = req.params.deviceId.trim();
+        const snapshot = await db.collection('battery_logs')
+            .where('deviceId', '==', deviceId)
+            .orderBy('timestamp', 'desc')
+            .limit(20)
+            .get();
+
+        if (snapshot.empty) return res.json([]);
+        const history = snapshot.docs.map(doc => doc.data());
+        res.json(history.reverse());
+    } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-// 5. Get List of Unique Devices
 exports.getDevices = async (req, res) => {
     try {
         const snapshot = await db.collection('battery_logs').get();
         const deviceSet = new Set();
         snapshot.forEach(doc => {
-            if(doc.data().deviceId) deviceSet.add(doc.data().deviceId);
+            const data = doc.data();
+            if (data.deviceId) deviceSet.add(data.deviceId.trim());
         });
         res.json({ devices: Array.from(deviceSet) });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+exports.registerToken = async (req, res) => {
+    try {
+        const { deviceId, fcmToken } = req.body;
+        await db.collection('device_tokens').doc(deviceId.trim()).set({
+            fcmToken,
+            timestamp: new Date().toISOString()
+        });
+        res.json({ message: "Registered" });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
