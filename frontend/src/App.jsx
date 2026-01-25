@@ -7,7 +7,7 @@ import {
   Sun, Moon 
 } from 'lucide-react';
 
-const API_BASE = "http://localhost:8080/api";
+const API_BASE = "https://voltguard-backend.onrender.com/api";
 
 export default function App() {
   // --- CORE LOGIC (UNTOUCHED) ---

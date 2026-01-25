@@ -57,6 +57,13 @@
 
 const express = require('express');
 const cors = require('cors');
+
+// Allow all origins so Vercel and your Python Agent can both talk to the server
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
 require('dotenv').config();
 
 const logRoutes = require('./routes/logRoutes');
