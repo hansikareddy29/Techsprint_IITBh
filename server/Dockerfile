@@ -6,7 +6,7 @@ COPY package*.json ./
 RUN npm install --production
 
 # --- FORCE COPY THE KEY FILE ---
-COPY serviceAccountKey.json ./serviceAccountKey.json
+# COPY serviceAccountKey.json ./serviceAccountKey.json
 
 # Copy everything else
 COPY . .
