@@ -5,14 +5,12 @@ import json
 import time
 import requests
 
-# Use your deployed backend URL here when you deploy
-# Replace localhost with your Render URL
-SERVER_URL = "https://voltguardai-f0g0.onrender.com/api/logs/save"
+# 1. Ensure this matches your ACTUAL backend URL
+SERVER_URL = "https://voltguard-backend.onrender.com/api/logs/save"
 
 class VoltGuardAgent:
     def __init__(self):
         self.os_type = platform.system()
-        # Automatically detects your laptop name (e.g., "Harshithas-MacBook")
         self.device_name = platform.node() 
         print(f"🚀 VoltGuard Agent initialized on {self.device_name} ({self.os_type})")
 
@@ -31,27 +29,20 @@ class VoltGuardAgent:
         return hw
 
     def get_real_apps(self):
-        # 1. Exact system process names to ignore
+        # --- KEPT YOUR ORIGINAL IGNORE LISTS ---
         IGNORE_EXACT = [
-            # macOS
             'kernel_task', 'launchd', 'WindowServer', 'mds', 'mdworker', 'mds_stores', 
             'opendirectoryd', 'powerd', 'configd', 'UserEventAgent', 'iconservicesagent', 
             'cfprefsd', 'distnoted', 'locationd', 'sharingd', 'tccd', 'softwareupdated',
             'trustd', 'accountsd', 'syspolicyd', 'nsurlsessiond', 'amfid', 'bird', 'cloudd',
-            # Windows
             'System Idle Process', 'System', 'Registry', 'smss.exe', 'csrss.exe', 
             'wininit.exe', 'services.exe', 'lsass.exe', 'svchost.exe', 'winlogon.exe', 
             'dwm.exe', 'RuntimeBroker.exe', 'SearchIndexer.exe', 'TaskHost.exe', 
             'WmiPrvSE.exe', 'ctfmon.exe', 'conhost.exe', 'dllhost.exe', 'sihost.exe',
             'MpCmdRun.exe', 'MsMpEng.exe', 'SearchHost.exe', 'SearchIndexer.exe',
-            # Linux Kernel / System
             'systemd', 'kthreadd', 'kworker', 'ksoftirqd', 'migration', 'rcu_sched', 
-            'kdevtmpfs', 'cpuhp', 'bash', 'sh', 'zsh', 'login',
-            # Universal Dev Tools
-            'python', 'python3', 'pythonw.exe', 'node', 'npm', 'pip'
+            'kdevtmpfs', 'cpuhp', 'bash', 'sh', 'zsh', 'login', 'python', 'python3', 'pythonw.exe', 'node', 'npm', 'pip'
         ]
-
-        # 2. Substrings that identify background/internal components
         IGNORE_KEYWORDS = ['helper', 'renderer', 'service', 'daemon', 'extension', 'com.apple', 'provider', 'broker']
         
         for proc in psutil.process_iter(['cpu_percent']):
@@ -64,16 +55,10 @@ class VoltGuardAgent:
             try:
                 name = proc.info.get('name')
                 cpu = proc.info.get('cpu_percent')
-                
                 if name and cpu is not None and cpu > 0.5:
                     name_lower = name.lower()
-                    
-                    if name in IGNORE_EXACT:
+                    if name in IGNORE_EXACT or any(key in name_lower for key in IGNORE_KEYWORDS):
                         continue
-                        
-                    if any(key in name_lower for key in IGNORE_KEYWORDS):
-                        continue
-                    
                     apps.append({"name": name, "cpu": cpu})
             except (psutil.NoSuchProcess, psutil.AccessDenied):
                 pass
@@ -86,9 +71,16 @@ class VoltGuardAgent:
         batt = psutil.sensors_battery()
         hw = self.get_hardware_data()
         
+        # --- ADDED: IP detection for auto-pairing ---
+        try:
+            public_ip = requests.get('https://api.ipify.org', timeout=5).text
+        except:
+            public_ip = "127.0.0.1"
+
         return {
             "deviceId": self.device_name,
             "os": self.os_type,
+            "ipAddress": public_ip, # 👈 Crucial for the dynamic link
             "battery_percent": batt.percent if batt else 0,
             "is_charging": batt.power_plugged if batt else False,
             "cpu_load": cpu_total,
@@ -102,13 +94,13 @@ class VoltGuardAgent:
         while True:
             data = self.collect()
             try:
-                response = requests.post(SERVER_URL, json=data, timeout=5)
-                print(f"✅ Telemetry Sent: {data['deviceId']} | CPU: {data['cpu_load']}% | Batt: {data['battery_percent']}%")
+                requests.post(SERVER_URL, json=data, timeout=5)
+                print(f"✅ Telemetry Sent: {data['deviceId']} | IP: {data['ipAddress']}")
             except Exception as e:
                 print(f"❌ Server Connection Error: {e}")
             
-            # Send data every 5 minutes to stay within free API limits
-            time.sleep(300)
+            # --- Faster sleep for the demo so judges see results quickly ---
+            time.sleep(60) 
 
 if __name__ == "__main__":
     VoltGuardAgent().run()

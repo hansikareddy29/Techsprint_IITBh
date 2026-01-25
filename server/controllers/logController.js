@@ -101,23 +101,34 @@ exports.registerToken = async (req, res) => {
 
 exports.getMyDevice = async (req, res) => {
   try {
-    // Get the user's current IP address
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    
-    // Find the last log sent from this IP
-    const snapshot = await db.collection('battery_logs')
+    // 1. Get the IP address of the browser visitor
+    const ip = req.headers['x-forwarded-for']?.split(',')[0] || req.socket.remoteAddress;
+    console.log("Detecting device for IP:", ip);
+
+    // 2. Search for a device matching this IP
+    let snapshot = await db.collection('battery_logs')
       .where('ipAddress', '==', ip)
-      .orderBy('timestamp', 'desc')
       .limit(1)
       .get();
+
+    // 3. FALLBACK: If IP search fails, just get the last device that talked to the server
+    if (snapshot.empty) {
+      console.log("No IP match. Falling back to latest database entry...");
+      snapshot = await db.collection('battery_logs')
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .get();
+    }
 
     if (snapshot.empty) {
       return res.json({ deviceId: null });
     }
 
-    const lastLog = snapshot.docs[0].data();
-    res.json({ deviceId: lastLog.deviceId });
+    const deviceId = snapshot.docs[0].data().deviceId;
+    res.json({ deviceId: deviceId });
+
   } catch (error) {
+    console.error("Detection Error:", error.message);
     res.status(500).json({ error: error.message });
   }
 };
