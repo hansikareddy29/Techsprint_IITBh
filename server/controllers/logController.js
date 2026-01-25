@@ -50,16 +50,12 @@ exports.getStats = async (req, res) => {
         res.json({
             avgCpu: (logs.reduce((s, l) => s + l.cpu_load, 0) / logs.length).toFixed(1),
             lastBattery: logs[0].battery_level,
+            batteryHealth: logs[0].health, // <--- ADDED THIS LINE
             totalAlerts: logs.filter(l => l.isAlert).length,
             latestAlertReason: recentAlert ? recentAlert.alertReason : "System Healthy"
         });
     } catch (e) { res.status(500).json({ error: e.message }); }
 };
-
-
-
-
-
 
 exports.getHistory = async (req, res) => {
     try {
@@ -73,11 +69,8 @@ exports.getHistory = async (req, res) => {
         if (snapshot.empty) return res.json([]);
         const history = snapshot.docs.map(doc => doc.data());
         res.json(history.reverse());
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    } catch (error) { res.status(500).json({ error: error.message }); }
 };
-
 
 exports.getDevices = async (req, res) => {
     try {
@@ -92,7 +85,6 @@ exports.getDevices = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
-
 
 exports.registerToken = async (req, res) => {
     try {
