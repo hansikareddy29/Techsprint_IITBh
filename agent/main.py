@@ -6,7 +6,8 @@ import time
 import requests
 
 # Use your deployed backend URL here when you deploy
-SERVER_URL = "http://localhost:8080/api/logs/save" 
+# Replace localhost with your Render URL
+SERVER_URL = "https://voltguard-backend.onrender.com/api/logs/save"
 
 class VoltGuardAgent:
     def __init__(self):
