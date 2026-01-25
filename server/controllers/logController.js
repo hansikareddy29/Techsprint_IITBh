@@ -98,3 +98,26 @@ exports.registerToken = async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 };
+
+exports.getMyDevice = async (req, res) => {
+  try {
+    // Get the user's current IP address
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    // Find the last log sent from this IP
+    const snapshot = await db.collection('battery_logs')
+      .where('ipAddress', '==', ip)
+      .orderBy('timestamp', 'desc')
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      return res.json({ deviceId: null });
+    }
+
+    const lastLog = snapshot.docs[0].data();
+    res.json({ deviceId: lastLog.deviceId });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};

@@ -7,5 +7,7 @@ router.get('/history/:deviceId', logController.getHistory);
 router.get('/stats/:deviceId', logController.getStats);
 router.post('/register-token', logController.registerToken);
 router.get('/list-devices', logController.getDevices);
+// Replace your existing get-my-device line with this:
+router.get('/get-my-device', logController.getMyDevice);
 
 module.exports = router;
