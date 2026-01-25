@@ -1,41 +1,62 @@
 const db = require('../config/firebase-config');
 
-/**
- * 1. SAVE LOG
- * Triggered by Python Agent
- */
 exports.saveLog = async (req, res) => {
     try {
         const p = req.body;
-        const incomingId = p.deviceId || p.device_id;
+        const cpu = Number(p.cpu_load) || 0;
+        const ram = Number(p.ram_usage) || 0;
+        const batt = Number(p.battery_percent) || 0;
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
 
-        if (!incomingId) return res.status(400).json({ error: "No deviceId provided" });
+        let isAlert = false;
+        let alertReason = "";
+        if (cpu > 90) { isAlert = true; alertReason = "High CPU Stress"; }
+        else if (ram > 90) { isAlert = true; alertReason = "Extreme RAM Pressure"; }
+        else if (batt < 15 && !p.is_charging) { isAlert = true; alertReason = "Low Battery"; }
 
         const logEntry = {
-            deviceId: incomingId.trim(),
+            deviceId: (p.deviceId || "Unknown").trim(),
             os: p.os || "Unknown",
-            battery_level: Number(p.battery_percent) || 0,
+            ipAddress: ip,
+            battery_level: batt,
             is_charging: p.is_charging || false,
-            cpu_load: Number(p.cpu_load) || 0,
-            ram_usage: Number(p.ram_usage) || 0,
+            cpu_load: cpu,
+            ram_usage: ram,
             top_apps: p.top_apps || [],
             cycles: p.cycles || 0,
             health: p.health || 100,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            isAlert,
+            alertReason: alertReason || "System Healthy"
         };
 
         await db.collection('battery_logs').add(logEntry);
-        console.log(`📈 Log saved for: ${logEntry.deviceId}`);
-        res.status(201).json({ message: "Telemetry Saved" });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+        res.status(201).json({ message: "Saved" });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 };
 
-/**
- * 2. GET HISTORY
- * Triggered by Frontend for Chart
- */
+exports.getStats = async (req, res) => {
+    try {
+        const deviceId = req.params.deviceId.trim();
+        const snapshot = await db.collection('battery_logs')
+            .where('deviceId', '==', deviceId)
+            .orderBy('timestamp', 'desc').get();
+
+        if (snapshot.empty) return res.status(404).json({ message: "No data" });
+
+        const logs = snapshot.docs.map(doc => doc.data());
+        const recentAlert = logs.find(l => l.isAlert === true);
+
+        res.json({
+            avgCpu: (logs.reduce((s, l) => s + l.cpu_load, 0) / logs.length).toFixed(1),
+            lastBattery: logs[0].battery_level,
+            batteryHealth: logs[0].health, // <--- ADDED THIS LINE
+            totalAlerts: logs.filter(l => l.isAlert).length,
+            latestAlertReason: recentAlert ? recentAlert.alertReason : "System Healthy"
+        });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+};
+
 exports.getHistory = async (req, res) => {
     try {
         const deviceId = req.params.deviceId.trim();
@@ -48,44 +69,9 @@ exports.getHistory = async (req, res) => {
         if (snapshot.empty) return res.json([]);
         const history = snapshot.docs.map(doc => doc.data());
         res.json(history.reverse());
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    } catch (error) { res.status(500).json({ error: error.message }); }
 };
 
-/**
- * 3. GET STATS
- * Triggered by Frontend for Dashboard Cards
- */
-exports.getStats = async (req, res) => {
-    try {
-        const deviceId = req.params.deviceId.trim();
-        const snapshot = await db.collection('battery_logs')
-            .where('deviceId', '==', deviceId)
-            .orderBy('timestamp', 'desc') 
-            .get();
-
-        if (snapshot.empty) return res.status(404).json({ message: "No data found" });
-
-        const logs = snapshot.docs.map(doc => doc.data());
-        let sumCpu = 0;
-        logs.forEach(l => sumCpu += (l.cpu_load || 0));
-
-        res.json({
-            avgCpu: (sumCpu / logs.length).toFixed(1),
-            lastBattery: logs[0].battery_level, // Most recent entry
-            totalAlerts: logs.filter(l => l.cpu_load > 90).length,
-            totalLogs: logs.length
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-};
-
-/**
- * 4. GET DEVICES
- * Triggered by Frontend for Dropdown
- */
 exports.getDevices = async (req, res) => {
     try {
         const snapshot = await db.collection('battery_logs').get();
@@ -100,9 +86,6 @@ exports.getDevices = async (req, res) => {
     }
 };
 
-/**
- * 5. REGISTER TOKEN
- */
 exports.registerToken = async (req, res) => {
     try {
         const { deviceId, fcmToken } = req.body;

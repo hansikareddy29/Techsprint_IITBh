@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// IMPORTANT: Replace with Hansika's IPv4 Address for the final demo
-const BASE_URL = "http://localhost:8080/api"; 
+
+const BASE_URL = "https://voltguardai-f0g0.onrender.com/api"; 
 
 export const api = {
   getDevices: () => axios.get(`${BASE_URL}/logs/list-devices`),
