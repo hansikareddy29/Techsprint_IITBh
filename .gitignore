@@ -1,21 +1,32 @@
-# --- General ---
+# --- System Files ---
 .DS_Store
-.env
+Thumbs.db
 *.log
+.env
 
-# --- Frontend (React/Vite) ---
+# --- Python Agent (Local Build Artifacts) ---
+agent/venv/
+agent/__pycache__/
+agent/build/
+agent/dist/
+agent/*.spec
+agent/*.pyc
+
+# --- Node.js (Backend & Frontend Dependencies) ---
+node_modules/
 frontend/node_modules/
+server/node_modules/
+
+# --- Frontend Build Artifacts ---
 frontend/dist/
 frontend/.local
 
-# --- Backend (Node.js) ---
-server/node_modules/
+# --- CRITICAL: SECURE YOUR KEYS ---
+server/serviceAccountKey.json
 server/.env
-server/serviceAccountkey.json
-# --- Python Agent (Harshitha) ---
-agent/__pycache__/
-agent/venv/
-agent/*.pyc
+frontend/.env
 
-# --- Global Node Modules (Just in case) ---
-node_modules/
+# --- DO NOT IGNORE THESE ---
+# Ensure your zip file in public/downloads is NOT ignored
+!frontend/public/downloads/
+!frontend/public/downloads/*.zip
